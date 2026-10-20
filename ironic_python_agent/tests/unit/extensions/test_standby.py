@@ -1876,8 +1876,12 @@ class TestStandbyExtension(base.IronicAgentTest):
     @mock.patch.object(standby.StandbyExtension,
                        '_write_no_pivot_root',
                        autospec=True)
+    @mock.patch.object(standby.StandbyExtension,
+                       '_selinux_is_active',
+                       autospec=True)
     def test__download_container_and_bootc_install_enforcing_selinux(
             self,
+            selinux_mock,
             no_pivot_mock,
             write_container_auth_mock,
             pull_container_image_mock,
@@ -1885,9 +1889,9 @@ class TestStandbyExtension(base.IronicAgentTest):
             write_authorized_keys_mock,
             get_size_mock,
             execute_mock):
+        selinux_mock.return_value = True
         get_size_mock.return_value = 2000000000
         execute_mock.side_effect = iter([
-            (('Enforcing\n'), ()),
             ((), ())])
         write_authorized_keys_mock.return_value = '/tmp/fake/file'
         write_container_auth_mock.return_value = '/tmp/ipa-container-auth.json'
@@ -1903,7 +1907,6 @@ class TestStandbyExtension(base.IronicAgentTest):
             mock.ANY, '/tmp/ipa-container-auth.json')
         get_size_mock.assert_called_once_with('/dev/fake')
         execute_mock.assert_has_calls([
-            mock.call('getenforce', use_standard_locale=True),
             mock.call(
                 'podman', '--log-level=debug', 'run', '--rm',
                 '--privileged',
@@ -1935,9 +1938,13 @@ class TestStandbyExtension(base.IronicAgentTest):
                        autospec=True)
     @mock.patch.object(standby.StandbyExtension,
                        '_write_no_pivot_root',
+                       autospec=True)
+    @mock.patch.object(standby.StandbyExtension,
+                       '_selinux_is_active',
                        autospec=True)
     def test__download_container_and_bootc_install_permissive_selinux(
             self,
+            selinux_mock,
             no_pivot_mock,
             write_container_auth_mock,
             pull_container_image_mock,
@@ -1945,9 +1952,9 @@ class TestStandbyExtension(base.IronicAgentTest):
             write_authorized_keys_mock,
             get_size_mock,
             execute_mock):
+        selinux_mock.return_value = True
         get_size_mock.return_value = 2000000000
         execute_mock.side_effect = iter([
-            (('Permissive\n'), ()),
             ((), ())])
         write_authorized_keys_mock.return_value = '/tmp/fake/file'
         write_container_auth_mock.return_value = '/tmp/ipa-container-auth.json'
@@ -1963,7 +1970,6 @@ class TestStandbyExtension(base.IronicAgentTest):
             mock.ANY, '/tmp/ipa-container-auth.json')
         get_size_mock.assert_called_once_with('/dev/fake')
         execute_mock.assert_has_calls([
-            mock.call('getenforce', use_standard_locale=True),
             mock.call(
                 'podman', '--log-level=debug', 'run', '--rm',
                 '--privileged',
@@ -1996,8 +2002,12 @@ class TestStandbyExtension(base.IronicAgentTest):
     @mock.patch.object(standby.StandbyExtension,
                        '_write_no_pivot_root',
                        autospec=True)
+    @mock.patch.object(standby.StandbyExtension,
+                       '_selinux_is_active',
+                       autospec=True)
     def test__download_container_and_bootc_install_luks(
             self,
+            selinux_mock,
             no_pivot_mock,
             write_container_auth_mock,
             pull_container_image_mock,
@@ -2005,9 +2015,9 @@ class TestStandbyExtension(base.IronicAgentTest):
             write_authorized_keys_mock,
             get_size_mock,
             execute_mock):
+        selinux_mock.return_value = True
         get_size_mock.return_value = 2000000000
         execute_mock.side_effect = iter([
-            (('Enforcing\n'), ()),
             ((), ())])
         write_authorized_keys_mock.return_value = '/tmp/fake/file'
         write_container_auth_mock.return_value = '/tmp/ipa-container-auth.json'
@@ -2023,7 +2033,6 @@ class TestStandbyExtension(base.IronicAgentTest):
             mock.ANY, '/tmp/ipa-container-auth.json')
         get_size_mock.assert_called_once_with('/dev/fake')
         execute_mock.assert_has_calls([
-            mock.call('getenforce', use_standard_locale=True),
             mock.call(
                 'podman', '--log-level=debug', 'run', '--rm',
                 '--privileged',
@@ -2057,8 +2066,12 @@ class TestStandbyExtension(base.IronicAgentTest):
     @mock.patch.object(standby.StandbyExtension,
                        '_write_no_pivot_root',
                        autospec=True)
+    @mock.patch.object(standby.StandbyExtension,
+                       '_selinux_is_active',
+                       autospec=True)
     def test__download_container_and_bootc_install_no_selinux_keys_auth(
             self,
+            selinux_mock,
             no_pivot_mock,
             write_container_auth_mock,
             pull_container_image_mock,
@@ -2066,9 +2079,9 @@ class TestStandbyExtension(base.IronicAgentTest):
             write_authorized_keys_mock,
             get_size_mock,
             execute_mock):
+        selinux_mock.return_value = False
         get_size_mock.return_value = 15000000000
         execute_mock.side_effect = iter([
-            OSError(),
             (('Disabled'), ())])
         write_authorized_keys_mock.return_value = '/tmp/fake/file'
 
@@ -2082,7 +2095,6 @@ class TestStandbyExtension(base.IronicAgentTest):
         cleanup_container_auth_mock.assert_not_called()
         get_size_mock.assert_called_once_with('/dev/fake')
         execute_mock.assert_has_calls([
-            mock.call('getenforce', use_standard_locale=True),
             mock.call(
                 'podman', '--log-level=debug', 'run', '--rm',
                 '--privileged',
@@ -2114,8 +2126,12 @@ class TestStandbyExtension(base.IronicAgentTest):
     @mock.patch.object(standby.StandbyExtension,
                        '_write_no_pivot_root',
                        autospec=True)
+    @mock.patch.object(standby.StandbyExtension,
+                       '_selinux_is_active',
+                       autospec=True)
     def test__download_container_and_bootc_install_errors_no_bootc(
             self,
+            selinux_mock,
             no_pivot_mock,
             write_container_auth_mock,
             pull_container_image_mock,
@@ -2123,9 +2139,9 @@ class TestStandbyExtension(base.IronicAgentTest):
             write_authorized_keys_mock,
             get_size_mock,
             execute_mock):
+        selinux_mock.return_value = False
         get_size_mock.return_value = 15000000000
         execute_mock.side_effect = iter([
-            OSError(),
             (('Error executable file `bootc` not found and'), ())])
         write_authorized_keys_mock.return_value = '/tmp/fake/file'
 
@@ -2143,7 +2159,6 @@ class TestStandbyExtension(base.IronicAgentTest):
         cleanup_container_auth_mock.assert_not_called()
         get_size_mock.assert_called_once_with('/dev/fake')
         execute_mock.assert_has_calls([
-            mock.call('getenforce', use_standard_locale=True),
             mock.call(
                 'podman', '--log-level=debug', 'run', '--rm',
                 '--privileged',
@@ -2175,8 +2190,12 @@ class TestStandbyExtension(base.IronicAgentTest):
     @mock.patch.object(standby.StandbyExtension,
                        '_write_no_pivot_root',
                        autospec=True)
+    @mock.patch.object(standby.StandbyExtension,
+                       '_selinux_is_active',
+                       autospec=True)
     def test__download_container_and_bootc_install_podman_errors(
             self,
+            selinux_mock,
             no_pivot_mock,
             write_container_auth_mock,
             pull_container_image_mock,
@@ -2184,9 +2203,9 @@ class TestStandbyExtension(base.IronicAgentTest):
             write_authorized_keys_mock,
             get_size_mock,
             execute_mock):
+        selinux_mock.return_value = False
         get_size_mock.return_value = 15000000000
         execute_mock.side_effect = iter([
-            OSError(),
             processutils.ProcessExecutionError()])
         write_authorized_keys_mock.return_value = '/tmp/fake/file'
         self.assertRaisesRegex(
@@ -2202,7 +2221,6 @@ class TestStandbyExtension(base.IronicAgentTest):
         cleanup_container_auth_mock.assert_not_called()
         get_size_mock.assert_called_once_with('/dev/fake')
         execute_mock.assert_has_calls([
-            mock.call('getenforce', use_standard_locale=True),
             mock.call(
                 'podman', '--log-level=debug', 'run', '--rm',
                 '--privileged',
@@ -2215,6 +2233,45 @@ class TestStandbyExtension(base.IronicAgentTest):
                 '--disable-selinux',
                 '/dev/fake', use_standard_locale=True)
         ])
+
+    @mock.patch('ironic_python_agent.utils.execute', autospec=True)
+    def test__selinux_is_active_enforcing(self, execute_mock):
+        with mock.patch('builtins.open',
+                        mock.mock_open(read_data='1')):
+            self.assertTrue(standby.StandbyExtension._selinux_is_active())
+        execute_mock.assert_not_called()
+
+    @mock.patch('ironic_python_agent.utils.execute', autospec=True)
+    def test__selinux_is_active_permissive(self, execute_mock):
+        with mock.patch('builtins.open',
+                        mock.mock_open(read_data='0')):
+            self.assertTrue(standby.StandbyExtension._selinux_is_active())
+        execute_mock.assert_not_called()
+
+    @mock.patch('ironic_python_agent.utils.execute', autospec=True)
+    def test__selinux_is_active_no_selinuxfs_falls_back(self, execute_mock):
+        # libselinux reports the state of the agent's own userspace, which
+        # is why it is only consulted when selinuxfs is unreachable.
+        execute_mock.return_value = ('Enforcing\n', '')
+        with mock.patch('builtins.open', autospec=True,
+                        side_effect=OSError()):
+            self.assertTrue(standby.StandbyExtension._selinux_is_active())
+        execute_mock.assert_called_once_with('getenforce',
+                                             use_standard_locale=True)
+
+    @mock.patch('ironic_python_agent.utils.execute', autospec=True)
+    def test__selinux_is_active_no_selinuxfs_disabled(self, execute_mock):
+        execute_mock.return_value = ('Disabled\n', '')
+        with mock.patch('builtins.open', autospec=True,
+                        side_effect=OSError()):
+            self.assertFalse(standby.StandbyExtension._selinux_is_active())
+
+    @mock.patch('ironic_python_agent.utils.execute', autospec=True)
+    def test__selinux_is_active_no_getenforce(self, execute_mock):
+        execute_mock.side_effect = OSError()
+        with mock.patch('builtins.open', autospec=True,
+                        side_effect=OSError()):
+            self.assertFalse(standby.StandbyExtension._selinux_is_active())
 
     @mock.patch.object(os, 'makedirs', autospec=True)
     @mock.patch('builtins.open', new_callable=mock.mock_open())
