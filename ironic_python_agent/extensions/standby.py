@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import tempfile
 import time
 from urllib import parse as urlparse
@@ -1282,6 +1283,14 @@ class StandbyExtension(base.BaseAgentExtension):
         else:
             self._pull_container_image(container_url)
 
+        # PoC ONLY, DO NOT MERGE. Export the pulled image to an OCI layout
+        # directory so bootc can be pointed at it with --source-imgref,
+        # instead of sharing the ramdisk container store with the tenant
+        # image. Sharing the store requires the tenant image to be able to
+        # open it, which on the ramdisk means it must ship fuse-overlayfs,
+        # since the store sits on overlayfs. centos-bootc stream10 does not.
+        source_dir = self._export_container_image(container_url)
+
         # Get the disk size, and convert it to megabtyes.
         disk_size = disk_utils.get_dev_byte_size(device) // 1024 // 1024
 
@@ -1318,7 +1327,7 @@ class StandbyExtension(base.BaseAgentExtension):
             '--log-level=debug',
             'run', '--rm', '--privileged', '--pid=host',
             '--pull=never',
-            '-v', '/var/lib/containers:/var/lib/containers',
+            '-v', '%s:%s:ro' % (source_dir, source_dir),
             '-v', '/dev:/dev',
         ]
         if authorized_keys:
@@ -1343,6 +1352,9 @@ class StandbyExtension(base.BaseAgentExtension):
         # fix, it only confirms that the missing declaration is the only
         # thing standing in the way.
         command.append('--filesystem=xfs')
+        # PoC ONLY, DO NOT MERGE. Tell bootc to install from the exported
+        # OCI layout rather than looking the image up in containers-storage.
+        command.append('--source-imgref=oci:' + source_dir)
         if tpm2_luks:
             command.append('--block-setup=tpm2-luks')
         if authorized_keys:
@@ -1362,6 +1374,10 @@ class StandbyExtension(base.BaseAgentExtension):
             LOG.debug('Failed to execute podman: %s', e)
             raise errors.ImageWriteError(device, e.exit_code, e.stdout,
                                          e.stderr)
+        finally:
+            # PoC ONLY, DO NOT MERGE. The export is a second copy of the
+            # image in a RAM backed ramdisk, so do not keep it around.
+            shutil.rmtree(os.path.dirname(source_dir), ignore_errors=True)
         for output in [stdout, stderr]:
             if 'executable file `bootc` not found' in output:
                 # This is the case where the container doesn't actually
@@ -1422,6 +1438,35 @@ class StandbyExtension(base.BaseAgentExtension):
         file_content = '[engine]\nno_pivot_root = true\n'
         with open(file_path, 'w') as file:
             file.write(file_content)
+
+    def _export_container_image(self, container_url):
+        """Export an already pulled image to an OCI layout directory.
+
+        PoC ONLY, DO NOT MERGE.
+
+        bootc normally resolves the image it is installing through
+        containers-storage, which means the store we bind into the tenant
+        container has to be openable from inside that image. On the ramdisk
+        the store sits on overlayfs, so that only works when the image
+        ships fuse-overlayfs. Exporting to an OCI layout lets us pass
+        ``--source-imgref`` instead and drop that requirement.
+
+        :param container_url: The container image to export.
+        :returns: The path to the OCI layout directory.
+        """
+        parent = tempfile.mkdtemp(prefix='ipa-bootc-source-')
+        source_dir = os.path.join(parent, 'image')
+        try:
+            utils.execute('podman', 'save', '--format', 'oci-dir',
+                          '-o', source_dir, container_url,
+                          use_standard_locale=True)
+        except processutils.ProcessExecutionError as e:
+            shutil.rmtree(parent, ignore_errors=True)
+            LOG.debug('Failed to export container image: %s', e)
+            raise errors.ImageDownloadError(
+                container_url,
+                'Could not export the container image for bootc: %s' % e)
+        return source_dir
 
     def _pull_container_image(self, container_url, auth_path=None):
         """Pre-pull a container image into the local podman store.
