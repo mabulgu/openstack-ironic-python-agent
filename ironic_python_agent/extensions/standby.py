@@ -1336,6 +1336,13 @@ class StandbyExtension(base.BaseAgentExtension):
             '--wipe', '--skip-fetch-check',
             '--root-size=' + disk_size + 'M'
         ])
+        # PoC ONLY, DO NOT MERGE. bootc takes the root filesystem type from
+        # either this flag or the image's own install config. The rhel-coreos
+        # image ships an empty /usr/lib/bootc/install/, so it fails with
+        # "No root filesystem specified". Hardcoding xfs is not the proposed
+        # fix, it only confirms that the missing declaration is the only
+        # thing standing in the way.
+        command.append('--filesystem=xfs')
         if tpm2_luks:
             command.append('--block-setup=tpm2-luks')
         if authorized_keys:
