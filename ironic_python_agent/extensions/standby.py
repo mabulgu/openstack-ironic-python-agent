@@ -42,6 +42,12 @@ LOG = log.getLogger(__name__)
 
 IMAGE_CHUNK_SIZE = 1024 * 1024  # 1MB
 
+# PoC ONLY, DO NOT MERGE. Where the exported OCI layout is mounted inside
+# the bootc container. A top level path is used deliberately: the previous
+# attempt mounted the host temporary directory at the same path inside the
+# container and bootc could not see it, so keep the parent as / here.
+BOOTC_SOURCE_MOUNT = '/bootc-source'
+
 
 def _image_location(image_info):
     """Get the location of the image in the local file system.
@@ -1327,7 +1333,7 @@ class StandbyExtension(base.BaseAgentExtension):
             '--log-level=debug',
             'run', '--rm', '--privileged', '--pid=host',
             '--pull=never',
-            '-v', '%s:%s:ro' % (source_dir, source_dir),
+            '-v', '%s:%s:ro' % (source_dir, BOOTC_SOURCE_MOUNT),
             '-v', '/dev:/dev',
         ]
         if authorized_keys:
@@ -1354,7 +1360,7 @@ class StandbyExtension(base.BaseAgentExtension):
         command.append('--filesystem=xfs')
         # PoC ONLY, DO NOT MERGE. Tell bootc to install from the exported
         # OCI layout rather than looking the image up in containers-storage.
-        command.append('--source-imgref=oci:' + source_dir)
+        command.append('--source-imgref=oci:' + BOOTC_SOURCE_MOUNT)
         if tpm2_luks:
             command.append('--block-setup=tpm2-luks')
         if authorized_keys:
